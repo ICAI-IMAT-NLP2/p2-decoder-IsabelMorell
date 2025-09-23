@@ -48,7 +48,7 @@ class AttentionHead(nn.Module):
 
         scores: torch.Tensor = torch.matmul(q, k.transpose(1, 2)) / torch.sqrt(torch.tensor(dim_k))
         if mask is not None:
-            scores = scores + scores.masked_fill_((mask == 1.0), float('-inf'))
+            scores = scores.masked_fill_((mask == 0), float('-inf'))
 
         weights = torch.softmax(scores, -1)
         output = weights @ v
@@ -286,6 +286,7 @@ class TransformerDecoder(nn.Module):
 
         seq_len: int = input_ids.shape[-1]
         mask: torch.Tensor = torch.tril(torch.ones(seq_len, seq_len)).view(1, seq_len, seq_len)
+        mask = mask.to(input_ids.device)
 
         for layer in self.layers:
             x = layer(x, mask)
@@ -310,9 +311,9 @@ class TransformerForLanguageModeling(nn.Module):
     def __init__(self, vocab_size: int, max_position_embeddings: int, d_model: int,
                  num_attention_heads: int, intermediate_size: int, num_hidden_layers: int):
         super(TransformerForLanguageModeling, self).__init__()
-        # TODO: Define the Transformer decoder and the language modeling head
-        self.transformer_decoder = None
-        self.lm_head = None
+        # Define the Transformer decoder and the language modeling head
+        self.transformer_decoder = TransformerDecoder(vocab_size, max_position_embeddings, d_model, num_attention_heads, intermediate_size, num_hidden_layers)
+        self.lm_head = nn.Linear(d_model, vocab_size)
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         """Forward pass through the Transformer model with language modeling head.
@@ -324,6 +325,7 @@ class TransformerForLanguageModeling(nn.Module):
             torch.Tensor: Logits tensor of shape (batch_size, seq_len, vocab_size).
         """
 
-        # TODO: Implement the forward pass for the Transformer model
-        logits = None
+        # Implement the forward pass for the Transformer model
+        hidden_state = self.transformer_decoder(input_ids)
+        logits = self.lm_head(hidden_state)
         return logits
